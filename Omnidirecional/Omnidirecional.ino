@@ -31,24 +31,28 @@ unsigned long LastTime = 0;
 unsigned long SampleTime = 100;
 
 //variables para el encoder1
+volatile int rpm1 = 0;
 volatile int Delta1 = 0;
 volatile int n1Ant = 0;
 volatile int n1=0;
 volatile byte ant1=0;
 volatile byte act1=0;
 //variables para el encoder2
+volatile int rpm2 = 0;
 volatile int Delta2 = 0;
 volatile int n2Ant = 0;
 volatile int n2=0;
 volatile byte ant2=0;
 volatile byte act2=0;
 //variables para el encoder3
+volatile int rpm3 = 0;
 volatile int Delta3 = 0;
 volatile int n3Ant = 0;
 volatile int n3=0;
 volatile byte ant3=0;
 volatile byte act3=0;
 //variables para el encoder4
+volatile int rpm4 = 0;
 volatile int Delta4 = 0;
 volatile int n4Ant = 0;
 volatile int n4=0;
@@ -60,7 +64,8 @@ void encoder1 (void);
 void encoder2 (void);
 void encoder3 (void);
 void encoder4 (void);
-
+void DeltaEncoders (void);
+void RPM (void);
 
 void setup(){
    Serial.begin(9600); 
@@ -88,10 +93,12 @@ void setup(){
 void loop(){
    if(millis()- LastTime >= SampleTime || LastTime == 0 ){
       LastTime = millis();
-      Serial.print("Encoder1: ");Serial.println(n1);
-      Serial.print("Encoder2: ");Serial.println(n2);
-      Serial.print("Encoder3: ");Serial.println(n3);
-      Serial.print("Encoder4: ");Serial.println(n4);
+      DeltaEncoders();
+      RPM();
+      Serial.print("D1: ");Serial.print(Delta1);Serial.print("||  RPM1: ");Serial.println(rpm1);
+      Serial.print("D2: ");Serial.print(Delta2);Serial.print("||  RPM2: ");Serial.println(rpm2);
+      Serial.print("D3: ");Serial.print(Delta3);Serial.print("||  RPM3: ");Serial.println(rpm3);
+      Serial.print("D4: ");Serial.print(Delta4);Serial.print("||  RPM4: ");Serial.println(rpm4)
    }
 }
 
@@ -125,16 +132,16 @@ void encoder2 (void){
         bitSet(act2,0);
     else bitClear(act2,0);
     
-    if(ant2 ==2 && act2 == 0 ) n2++;
-    if(ant2 ==0 && act2 == 1 ) n2++;
-    if(ant2 ==3 && act2 == 2 ) n2++;
-    if(ant2 ==1 && act2 == 3 ) n2++;
+    if(ant2 ==2 && act2 == 0 ) n2--;
+    if(ant2 ==0 && act2 == 1 ) n2--;
+    if(ant2 ==3 && act2 == 2 ) n2--;
+    if(ant2 ==1 && act2 == 3 ) n2--;
 
 
-    if(ant2 ==1 && act2 == 0 ) n2--;
-    if(ant2 ==3 && act2 == 1 ) n2--;
-    if(ant2 ==0 && act2 == 2 ) n2--;
-    if(ant2 ==2 && act2 == 3 ) n2--;
+    if(ant2 ==1 && act2 == 0 ) n2++;
+    if(ant2 ==3 && act2 == 1 ) n2++;
+    if(ant2 ==0 && act2 == 2 ) n2++;
+    if(ant2 ==2 && act2 == 3 ) n2++;
 
 }
 void encoder3 (void){
@@ -146,16 +153,16 @@ void encoder3 (void){
         bitSet(act3,0);
     else bitClear(act3,0);
     
-    if(ant3 ==2 && act3 == 0 ) n3++;
-    if(ant3 ==0 && act3 == 1 ) n3++;
-    if(ant3 ==3 && act3 == 2 ) n3++;
-    if(ant3 ==1 && act3 == 3 ) n3++;
+    if(ant3 ==2 && act3 == 0 ) n3--;
+    if(ant3 ==0 && act3 == 1 ) n3--;
+    if(ant3 ==3 && act3 == 2 ) n3--;
+    if(ant3 ==1 && act3 == 3 ) n3--;
 
 
-    if(ant3 ==1 && act3 == 0 ) n3--;
-    if(ant3 ==3 && act3 == 1 ) n3--;
-    if(ant3 ==0 && act3 == 2 ) n3--;
-    if(ant3 ==2 && act3 == 3 ) n3--;
+    if(ant3 ==1 && act3 == 0 ) n3++;
+    if(ant3 ==3 && act3 == 1 ) n3++;
+    if(ant3 ==0 && act3 == 2 ) n3++;
+    if(ant3 ==2 && act3 == 3 ) n3++;
 
 }
 void encoder4 (void){
@@ -178,4 +185,30 @@ void encoder4 (void){
     if(ant4 ==0 && act4 == 2 ) n4--;
     if(ant4 ==2 && act4 == 3 ) n4--;
 
+}
+void DeltaEncoders (void){
+   Delta1 = n1 - n1Ant;
+   Delta2 = n2 - n2Ant;
+   Delta3 = n3 - n3Ant;
+   Delta4 = n4 - n4Ant;
+
+   n1Ant = n1;
+   n2Ant = n2;
+   n3Ant = n3;
+   n4Ant = n4;
+/*    Serial.print("D1: ");Serial.print(Delta1);
+   Serial.print("D2: ");Serial.print(Delta2);
+   Serial.print("D3: ");Serial.print(Delta3);
+   Serial.print("D4: ");Serial.print(Delta4); */
+}
+void RPM (void){
+   rpm1 = (Delta1 * 600.0) / 410.0;
+   rpm2 = (Delta2 * 600.0) / 410.0;
+   rpm3 = (Delta3 * 600.0) / 410.0;
+   rpm4 = (Delta4 * 600.0) / 410.0;
+
+/*    Serial.print("RPM1: ");Serial.println(rpm1);
+   Serial.print("RPM2: ");Serial.println(rpm2);
+   Serial.print("RPM3: ");Serial.println(rpm3);
+   Serial.print("RPM4: ");Serial.println(rpm4); */
 }
