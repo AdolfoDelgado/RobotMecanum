@@ -134,10 +134,12 @@ void loop(){
          RPM();
          VelocidadAngular();
          VelocidadLineal();
-         Serial.print("D1: ");Serial.print(Delta1);Serial.print("||  RPM1: ");Serial.println(rpm1);
+         CinematicaDirecta();
+/*          Serial.print("D1: ");Serial.print(Delta1);Serial.print("||  RPM1: ");Serial.println(rpm1);
          Serial.print("D2: ");Serial.print(Delta2);Serial.print("||  RPM2: ");Serial.println(rpm2);
          Serial.print("D3: ");Serial.print(Delta3);Serial.print("||  RPM3: ");Serial.println(rpm3);
-         Serial.print("D4: ");Serial.print(Delta4);Serial.print("||  RPM4: ");Serial.println(rpm4);
+         Serial.print("D4: ");Serial.print(Delta4);Serial.print("||  RPM4: ");Serial.println(rpm4); */
+      
       }
    }
 }
@@ -268,4 +270,7 @@ void CinematicaDirecta(void){
    vx = (v1 + v2 + v3 + v4) / 4.0;
    vy = (-v1 + v2 - v3 + v4) / 4.0;
    w  = (-v1 + v2 + v3 - v4) / (4.0 * LX+LY);
+   Serial.printf("Velocidad en X: ");Serial.println(vx);
+   Serial.printf("Velocidad en Y: ");Serial.println(vy);
+   Serial.printf("Velocidad W: ");Serial.println(w);
 }
