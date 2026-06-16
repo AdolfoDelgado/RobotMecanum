@@ -1,3 +1,4 @@
+#include <math.h>
 ///////*configuración para mis drivers*///////// 
 //driver para el motor 1
 #define M1forward 11
@@ -32,6 +33,8 @@ unsigned long LastTime = 0;
 unsigned long SampleTime = 100;
 
 //variables para el encoder1
+float v1 = 0;
+volatile float w1 = 0;
 volatile float rpm1 = 0;
 volatile long Delta1 = 0;
 volatile long muestran1 = 0;
@@ -40,6 +43,8 @@ volatile long n1=0;
 volatile byte ant1=0;
 volatile byte act1=0;
 //variables para el encoder2
+float v2 = 0;
+volatile float w2 = 0;
 volatile float rpm2 = 0;
 volatile long Delta2 = 0;
 volatile long muestran2 = 0;
@@ -48,6 +53,8 @@ volatile long n2=0;
 volatile byte ant2=0;
 volatile byte act2=0;
 //variables para el encoder3
+float v3 = 0;
+volatile float w3 = 0;
 volatile float rpm3 = 0;
 volatile long Delta3 = 0;
 volatile long muestran3 = 0;
@@ -56,6 +63,8 @@ volatile long n3=0;
 volatile byte ant3=0;
 volatile byte act3=0;
 //variables para el encoder4
+float v4 = 0;
+volatile float w4 = 0;
 volatile float rpm4 = 0;
 volatile long Delta4 = 0;
 volatile long muestran4 = 0;
@@ -64,14 +73,25 @@ volatile long n4=0;
 volatile byte ant4=0;
 volatile byte act4=0;
 
+///////*variables para el calculo de cinematica*///////// 
+float radioRueda = 0.03;
+float LX = 0.0605; 
+float LY = 0.0964;
+float vx = 0;
+float vy = 0;
+float w = 0;
+
 ///////*funciones para los encoders*///////// 
 void encoder1 (void);
 void encoder2 (void);
 void encoder3 (void);
 void encoder4 (void);
+
 void DeltaEncoders (void);
 void RPM (void);
-
+void VelocidadAngular(void);
+void VelocidadLineal(void);
+void CinematicaDirecta(void);
 void setup(){
    Serial.begin(9600); 
    pinMode(M1Aencoder, INPUT);
@@ -112,6 +132,8 @@ void loop(){
       else {
          DeltaEncoders();
          RPM();
+         VelocidadAngular();
+         VelocidadLineal();
          Serial.print("D1: ");Serial.print(Delta1);Serial.print("||  RPM1: ");Serial.println(rpm1);
          Serial.print("D2: ");Serial.print(Delta2);Serial.print("||  RPM2: ");Serial.println(rpm2);
          Serial.print("D3: ");Serial.print(Delta3);Serial.print("||  RPM3: ");Serial.println(rpm3);
@@ -229,4 +251,21 @@ void RPM (void){
    Serial.print("RPM2: ");Serial.println(rpm2);
    Serial.print("RPM3: ");Serial.println(rpm3);
    Serial.print("RPM4: ");Serial.println(rpm4); */
+}
+void VelocidadAngular(void){
+   w1 = rpm1 * 2.0 * PI / 60.0;
+   w2 = rpm2 * 2.0 * PI / 60.0;
+   w3 = rpm3 * 2.0 * PI / 60.0;
+   w4 = rpm4 * 2.0 * PI / 60.0;
+}
+void VelocidadLineal(void){
+   v1 = w1 * radioRueda;
+   v2 = w2 * radioRueda;
+   v3 = w3 * radioRueda;
+   v4 = w4 * radioRueda;
+}
+void CinematicaDirecta(void){
+   vx = (v1 + v2 + v3 + v4) / 4.0;
+   vy = (-v1 + v2 - v3 + v4) / 4.0;
+   w  = (-v1 + v2 + v3 - v4) / (4.0 * LX+LY);
 }
