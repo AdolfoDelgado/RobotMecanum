@@ -27,35 +27,40 @@
 #define M4Bencoder 39
 
 ///////*variables para el conteo de pulsos*///////// 
+bool primeraMuestra = true;
 unsigned long LastTime = 0;
 unsigned long SampleTime = 100;
 
 //variables para el encoder1
-volatile int rpm1 = 0;
-volatile int Delta1 = 0;
-volatile int n1Ant = 0;
-volatile int n1=0;
+volatile float rpm1 = 0;
+volatile long Delta1 = 0;
+volatile long muestran1 = 0;
+volatile long n1Ant = 0;
+volatile long n1=0;
 volatile byte ant1=0;
 volatile byte act1=0;
 //variables para el encoder2
-volatile int rpm2 = 0;
-volatile int Delta2 = 0;
-volatile int n2Ant = 0;
-volatile int n2=0;
+volatile float rpm2 = 0;
+volatile long Delta2 = 0;
+volatile long muestran2 = 0;
+volatile long n2Ant = 0;
+volatile long n2=0;
 volatile byte ant2=0;
 volatile byte act2=0;
 //variables para el encoder3
-volatile int rpm3 = 0;
-volatile int Delta3 = 0;
-volatile int n3Ant = 0;
-volatile int n3=0;
+volatile float rpm3 = 0;
+volatile long Delta3 = 0;
+volatile long muestran3 = 0;
+volatile long n3Ant = 0;
+volatile long n3=0;
 volatile byte ant3=0;
 volatile byte act3=0;
 //variables para el encoder4
-volatile int rpm4 = 0;
-volatile int Delta4 = 0;
-volatile int n4Ant = 0;
-volatile int n4=0;
+volatile float rpm4 = 0;
+volatile long Delta4 = 0;
+volatile long muestran4 = 0;
+volatile long n4Ant = 0;
+volatile long n4=0;
 volatile byte ant4=0;
 volatile byte act4=0;
 
@@ -93,12 +98,25 @@ void setup(){
 void loop(){
    if(millis()- LastTime >= SampleTime || LastTime == 0 ){
       LastTime = millis();
-      DeltaEncoders();
-      RPM();
-      Serial.print("D1: ");Serial.print(Delta1);Serial.print("||  RPM1: ");Serial.println(rpm1);
-      Serial.print("D2: ");Serial.print(Delta2);Serial.print("||  RPM2: ");Serial.println(rpm2);
-      Serial.print("D3: ");Serial.print(Delta3);Serial.print("||  RPM3: ");Serial.println(rpm3);
-      Serial.print("D4: ");Serial.print(Delta4);Serial.print("||  RPM4: ");Serial.println(rpm4)
+      muestran1 = n1;
+      muestran2 = n2;
+      muestran3 = n3;
+      muestran4 = n4;
+      if(primeraMuestra){
+         n1Ant = muestran1;
+         n2Ant = muestran2;
+         n3Ant = muestran3;
+         n4Ant = muestran4;
+         primeraMuestra = false;
+      }
+      else {
+         DeltaEncoders();
+         RPM();
+         Serial.print("D1: ");Serial.print(Delta1);Serial.print("||  RPM1: ");Serial.println(rpm1);
+         Serial.print("D2: ");Serial.print(Delta2);Serial.print("||  RPM2: ");Serial.println(rpm2);
+         Serial.print("D3: ");Serial.print(Delta3);Serial.print("||  RPM3: ");Serial.println(rpm3);
+         Serial.print("D4: ");Serial.print(Delta4);Serial.print("||  RPM4: ");Serial.println(rpm4);
+      }
    }
 }
 
@@ -187,15 +205,15 @@ void encoder4 (void){
 
 }
 void DeltaEncoders (void){
-   Delta1 = n1 - n1Ant;
-   Delta2 = n2 - n2Ant;
-   Delta3 = n3 - n3Ant;
-   Delta4 = n4 - n4Ant;
+   Delta1 = muestran1 - n1Ant;
+   Delta2 = muestran2 - n2Ant;
+   Delta3 = muestran3 - n3Ant;
+   Delta4 = muestran4 - n4Ant;
 
-   n1Ant = n1;
-   n2Ant = n2;
-   n3Ant = n3;
-   n4Ant = n4;
+   n1Ant = muestran1;
+   n2Ant = muestran2;
+   n3Ant = muestran3;
+   n4Ant = muestran4;
 /*    Serial.print("D1: ");Serial.print(Delta1);
    Serial.print("D2: ");Serial.print(Delta2);
    Serial.print("D3: ");Serial.print(Delta3);
