@@ -92,6 +92,8 @@ void RPM (void);
 void VelocidadAngular(void);
 void VelocidadLineal(void);
 void CinematicaDirecta(void);
+void Motores(int motor, int pwm);
+
 void setup(){
    Serial.begin(9600); 
    pinMode(M1Aencoder, INPUT);
@@ -111,37 +113,43 @@ void setup(){
    attachInterrupt (digitalPinToInterrupt(M3Bencoder), encoder3, CHANGE);
    attachInterrupt (digitalPinToInterrupt(M4Aencoder), encoder4, CHANGE);
    attachInterrupt (digitalPinToInterrupt(M4Bencoder), encoder4, CHANGE);
+
+    ledcAttach(M1forward, 1000, 10);
+    ledcAttach(M1backward, 1000, 10); 
+    ledcAttach(M2forward, 1000, 10);
+    ledcAttach(M2backward, 1000, 10); 
+    ledcAttach(M3forward, 1000, 10);
+    ledcAttach(M3backward, 1000, 10); 
+    ledcAttach(M4forward, 1000, 10);
+    ledcAttach(M4backward, 1000, 10); 
     
 }
 
 
 void loop(){
-   if(millis()- LastTime >= SampleTime || LastTime == 0 ){
-      LastTime = millis();
-      muestran1 = n1;
-      muestran2 = n2;
-      muestran3 = n3;
-      muestran4 = n4;
-      if(primeraMuestra){
-         n1Ant = muestran1;
-         n2Ant = muestran2;
-         n3Ant = muestran3;
-         n4Ant = muestran4;
-         primeraMuestra = false;
-      }
-      else {
-         DeltaEncoders();
-         RPM();
-         VelocidadAngular();
-         VelocidadLineal();
-         CinematicaDirecta();
-/*          Serial.print("D1: ");Serial.print(Delta1);Serial.print("||  RPM1: ");Serial.println(rpm1);
-         Serial.print("D2: ");Serial.print(Delta2);Serial.print("||  RPM2: ");Serial.println(rpm2);
-         Serial.print("D3: ");Serial.print(Delta3);Serial.print("||  RPM3: ");Serial.println(rpm3);
-         Serial.print("D4: ");Serial.print(Delta4);Serial.print("||  RPM4: ");Serial.println(rpm4); */
-      
-      }
-   }
+    if(millis()- LastTime >= SampleTime || LastTime == 0 ){
+        LastTime = millis();
+        muestran1 = n1;
+        muestran2 = n2;
+        muestran3 = n3;
+        muestran4 = n4;
+        if(primeraMuestra){
+            n1Ant = muestran1;
+            n2Ant = muestran2;
+            n3Ant = muestran3;
+            n4Ant = muestran4;
+            primeraMuestra = false;
+        }
+        else {
+            DeltaEncoders();
+            RPM();
+            VelocidadAngular();
+            VelocidadLineal();
+
+            CinematicaDirecta();
+            Motores(1, 200);
+        }
+    }
 }
 
 void encoder1 (void){
@@ -273,4 +281,27 @@ void CinematicaDirecta(void){
    Serial.printf("Velocidad en X: ");Serial.println(vx);
    Serial.printf("Velocidad en Y: ");Serial.println(vy);
    Serial.printf("Velocidad W: ");Serial.println(w);
+}
+void Motores(int motor, int pwm){
+    pwm = constrain(pwm, -1023, 1023);
+
+    int pinFwd, pinBwd;
+
+    if(motor == 1){ pinFwd = M1forward; pinBwd = M1backward; }
+    if(motor == 2){ pinFwd = M2forward; pinBwd = M2backward; }
+    if(motor == 3){ pinFwd = M3forward; pinBwd = M3backward; }
+    if(motor == 4){ pinFwd = M4forward; pinBwd = M4backward; }
+
+    if(pwm > 0){
+        ledcWrite(pinFwd, pwm);
+        ledcWrite(pinBwd, 0);
+    }
+    else if(pwm < 0){
+        ledcWrite(pinFwd, 0);
+        ledcWrite(pinBwd, -pwm);
+    }
+    else{
+        ledcWrite(pinFwd, 0);
+        ledcWrite(pinBwd, 0);
+    }
 }
