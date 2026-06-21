@@ -1,3 +1,7 @@
+/* 
+Esta version contiene la cinematica Inversa funcionando, solo me falta probar vencer la fricción
+del suelo para despues probar perfecto mi control PI
+ */
 #include <math.h>
 ///////*configuración para mis drivers*///////// 
 //driver para el motor 1
@@ -32,9 +36,10 @@ bool primeraMuestra = true;
 unsigned long LastTime = 0;
 unsigned long SampleTime = 100;
 
+unsigned long lastPrint = 0;
+unsigned long PrintTime = 1000;
+
 //variables para el encoder1
-float v1 = 0;
-volatile float w1 = 0;
 volatile float rpm1 = 0;
 volatile long Delta1 = 0;
 volatile long muestran1 = 0;
@@ -43,8 +48,6 @@ volatile long n1=0;
 volatile byte ant1=0;
 volatile byte act1=0;
 //variables para el encoder2
-float v2 = 0;
-volatile float w2 = 0;
 volatile float rpm2 = 0;
 volatile long Delta2 = 0;
 volatile long muestran2 = 0;
@@ -53,8 +56,6 @@ volatile long n2=0;
 volatile byte ant2=0;
 volatile byte act2=0;
 //variables para el encoder3
-float v3 = 0;
-volatile float w3 = 0;
 volatile float rpm3 = 0;
 volatile long Delta3 = 0;
 volatile long muestran3 = 0;
@@ -63,8 +64,6 @@ volatile long n3=0;
 volatile byte ant3=0;
 volatile byte act3=0;
 //variables para el encoder4
-float v4 = 0;
-volatile float w4 = 0;
 volatile float rpm4 = 0;
 volatile long Delta4 = 0;
 volatile long muestran4 = 0;
@@ -73,13 +72,68 @@ volatile long n4=0;
 volatile byte ant4=0;
 volatile byte act4=0;
 
+///////*variables para el VELOCIDADES LINEALES Y ANGULARES*///////// 
+float v1 = 0;
+float v2 = 0;
+float v3 = 0;
+float v4 = 0;
+
+volatile float w1 = 0;
+volatile float w2 = 0;
+volatile float w3 = 0;
+volatile float w4 = 0;
+
 ///////*variables para el calculo de cinematica*///////// 
 float radioRueda = 0.03;
 float LX = 0.0605; 
 float LY = 0.0964;
+
 float vx = 0;
 float vy = 0;
 float w = 0;
+
+float vx_d = 0;
+float vy_d = 0.2;
+float w_d = 0;
+
+
+///////*variables para el PID*///////// 
+float error1=0;
+float error2=0;
+float error3=0;
+float error4=0;
+
+float error1Ant = 0;
+float error2Ant = 0;
+float error3Ant = 0;
+float error4Ant = 0;
+
+float integral1=0;
+float integral2=0;
+float integral3=0;
+float integral4=0;
+
+float derivada1 = 0;
+float derivada2 = 0;
+float derivada3 = 0;
+float derivada4 = 0;
+
+int pwm1=0;
+int pwm2=0;
+int pwm3=0;
+int pwm4=0;
+
+float kp = 22;
+float Ki = 3.5;
+//float kd = 0.1;
+float dt = SampleTime / 1000.0;
+
+///////*variables para el SETPOINT*///////// 
+float w1_d=0;
+float w2_d=0;
+float w3_d=0;
+float w4_d=0;
+
 
 ///////*funciones para los encoders*///////// 
 void encoder1 (void);
@@ -92,7 +146,9 @@ void RPM (void);
 void VelocidadAngular(void);
 void VelocidadLineal(void);
 void CinematicaDirecta(void);
-void Motores(int motor, int pwm);
+void CinematicaInversa();
+void Motor(int motor, int pwm);
+void PIDmotores();
 
 void setup(){
    Serial.begin(9600); 
@@ -147,8 +203,21 @@ void loop(){
             VelocidadLineal();
 
             CinematicaDirecta();
-            Motores(1, 200);
+            CinematicaInversa(vx_d, vy_d, w_d);
+
+            PIDmotores();
         }
+    }
+    if (millis() - lastPrint >= PrintTime){
+        lastPrint = millis();
+        Serial.print("vx_d: "); Serial.print(vx_d);
+        Serial.print(" vx: ");  Serial.println(vx);
+
+        Serial.print("vy_d: "); Serial.print(vy_d);
+        Serial.print(" vy: ");  Serial.println(vy);
+
+        Serial.print("w_d: ");  Serial.print(w_d);
+        Serial.print(" w: ");   Serial.println(w);
     }
 }
 
@@ -246,10 +315,6 @@ void DeltaEncoders (void){
    n2Ant = muestran2;
    n3Ant = muestran3;
    n4Ant = muestran4;
-/*    Serial.print("D1: ");Serial.print(Delta1);
-   Serial.print("D2: ");Serial.print(Delta2);
-   Serial.print("D3: ");Serial.print(Delta3);
-   Serial.print("D4: ");Serial.print(Delta4); */
 }
 void RPM (void){
    rpm1 = (Delta1 * 600.0) / 410.0;
@@ -278,11 +343,23 @@ void CinematicaDirecta(void){
    vx = (v1 + v2 + v3 + v4) / 4.0;
    vy = (-v1 + v2 - v3 + v4) / 4.0;
    w  = (-v1 + v2 + v3 - v4) / (4.0 * LX+LY);
-   Serial.printf("Velocidad en X: ");Serial.println(vx);
-   Serial.printf("Velocidad en Y: ");Serial.println(vy);
-   Serial.printf("Velocidad W: ");Serial.println(w);
 }
-void Motores(int motor, int pwm){
+void CinematicaInversa(float vx, float vy, float w){
+/*     w1_d = (vx_d - vy_d - (LX + LY) * w_d) / radioRueda;
+    w2_d = (vx_d + vy_d + (LX + LY) * w_d) / radioRueda;
+    w3_d = (vx_d - vy_d + (LX + LY) * w_d) / radioRueda;
+    w4_d = (vx_d + vy_d - (LX + LY) * w_d) / radioRueda;
+ */
+    w1_d = (vx - vy - (LX + LY) * w) / radioRueda;
+    w2_d = (vx + vy + (LX + LY) * w) / radioRueda;
+    w3_d = (vx - vy + (LX + LY) * w) / radioRueda;
+    w4_d = (vx + vy - (LX + LY) * w) / radioRueda;
+}
+void Motor(int motor, int pwm){
+    int pwmMin = 120;
+    if(pwm1 > 0) pwm1 += pwmMin;
+    if(pwm1 < 0) pwm1 -= pwmMin;
+
     pwm = constrain(pwm, -1023, 1023);
 
     int pinFwd, pinBwd;
@@ -305,3 +382,80 @@ void Motores(int motor, int pwm){
         ledcWrite(pinBwd, 0);
     }
 }
+void PIDmotores(){
+    error1=w1_d-w1;
+    integral1 += error1 * dt;
+    integral1 = constrain (integral1, -300, 300);
+    //derivada1 = (error1 - error1Ant) / dt;
+    pwm1=kp * error1 + Ki * integral1; //+ kd * derivada1;
+
+    error2=w2_d-w2;
+    integral2 += error2 * dt;
+    integral2 = constrain (integral2, -300, 300);
+    //derivada2 = (error2 - error2Ant) / dt;
+    pwm2=kp * error2 + Ki * integral2 ;//+ kd * derivada2;
+
+    error3=w3_d-w3;
+    integral3 += error3 * dt;
+    integral3 = constrain (integral3, -300, 300);
+    //derivada3 = (error3 - error3Ant) / dt;
+    pwm3=kp * error3 + Ki * integral3; //+ kd * derivada3;
+
+    error4=w4_d-w4;
+    integral4 += error4 * dt;
+    integral4 = constrain (integral4, -300, 300);
+    //derivada4 = (error4 - error4Ant) / dt;
+    pwm4=kp * error4 + Ki * integral4; //+ kd * derivada4;
+
+
+    Motor(1, pwm1);
+    Motor(2, pwm2);
+    Motor(3, pwm3);
+    Motor(4, pwm4);
+    error1Ant = error1;
+    error2Ant = error2;
+    error3Ant = error3;
+    error4Ant = error4;
+}
+
+///////////////////////////CON ESTO VISUALIZO LA VELOCIDAD OBTENIDA VS LA DESEADA//////////////////////
+/*             Serial.print("Deseada w1: ");
+            Serial.print(w1_d);
+            Serial.print("\t");
+            Serial.print(" Medida w1: "); */
+/*             Serial.print(w1);    
+            Serial.print("\t"); */
+/*             Serial.print(" PWM1: ");
+            Serial.println(pwm1); */
+
+/*             Serial.print("Deseada w2: ");
+            Serial.print(w2_d);
+            Serial.print("\t");
+            Serial.print(" Medida w2: "); */
+/*             Serial.print(w2);    
+            Serial.print("\t"); */
+/*             Serial.print(" PWM2: ");
+            Serial.println(pwm2); */
+
+/*             Serial.print("Deseada w3: ");
+            Serial.print(w3_d);
+            Serial.print("\t");
+            Serial.print(" Medida w3: "); */
+/*             Serial.print(w3);    
+            Serial.print("\t"); */
+/*             Serial.print(" PWM3: ");
+            Serial.println(pwm3); */
+
+/*             Serial.print("Deseada w4: ");    
+            Serial.print(w4_d);
+            Serial.print("\t");
+            Serial.print(" Medida w4: "); */
+/*             Serial.println(w4);  */   
+/*             Serial.print("\t");
+            Serial.print(" PWM4: ");
+            Serial.println(pwm4); */
+
+/////////////////////////////CON ESTO VISUALIZO LA VELOCIDAD EN VX VY Y W///////////////////////
+/*    Serial.printf("Velocidad en X: ");Serial.println(vx);
+   Serial.printf("Velocidad en Y: ");Serial.println(vy);
+   Serial.printf("Velocidad W: ");Serial.println(w); */
