@@ -93,31 +93,31 @@ float vy = 0;
 float w = 0;
 
 float vx_d = 0;
-float vy_d = 0.2;
+float vy_d = 0;
 float w_d = 0;
 
 
-///////*variables para el PID*///////// 
+///////*variables para el PID de los motores*///////// 
 float error1=0;
 float error2=0;
 float error3=0;
 float error4=0;
 
-float error1Ant = 0;
+/* float error1Ant = 0;
 float error2Ant = 0;
 float error3Ant = 0;
-float error4Ant = 0;
+float error4Ant = 0; */
 
 float integral1=0;
 float integral2=0;
 float integral3=0;
 float integral4=0;
 
-float derivada1 = 0;
+/* float derivada1 = 0;
 float derivada2 = 0;
 float derivada3 = 0;
 float derivada4 = 0;
-
+ */
 int pwm1=0;
 int pwm2=0;
 int pwm3=0;
@@ -128,12 +128,17 @@ float Ki = 3.5;
 //float kd = 0.1;
 float dt = SampleTime / 1000.0;
 
-///////*variables para el SETPOINT*///////// 
+///////*variables para el SETPOINT DE VELOCIDAD ANGULAR*///////// 
 float w1_d=0;
 float w2_d=0;
 float w3_d=0;
 float w4_d=0;
 
+///////*VARIABLES PARA EL CALCULO DE ODOMETRIA*///////// 
+
+float x = 0.0;
+float y = 0.0;
+float theta = 0.0;
 
 ///////*funciones para los encoders*///////// 
 void encoder1 (void);
@@ -141,12 +146,14 @@ void encoder2 (void);
 void encoder3 (void);
 void encoder4 (void);
 
+//////////*funciones para CINEMATICA DIRECTA E INVERSA Y ODOMETRIA*///////// 
 void DeltaEncoders (void);
 void RPM (void);
 void VelocidadAngular(void);
 void VelocidadLineal(void);
 void CinematicaDirecta(void);
 void CinematicaInversa();
+void Odometria();
 void Motor(int motor, int pwm);
 void PIDmotores();
 
@@ -355,8 +362,13 @@ void CinematicaInversa(float vx, float vy, float w){
     w3_d = (vx - vy + (LX + LY) * w) / radioRueda;
     w4_d = (vx + vy - (LX + LY) * w) / radioRueda;
 }
+void Odometria(){    
+    theta += w * dt;
+    x += (vx * cos(theta) - vy * sin(theta)) * dt;
+    y += (vx * sin(theta) + vy * cos(theta)) * dt;
+}
 void Motor(int motor, int pwm){
-    int pwmMin = 120;
+    int pwmMin = 200;
     if(pwm1 > 0) pwm1 += pwmMin;
     if(pwm1 < 0) pwm1 -= pwmMin;
 
@@ -417,6 +429,7 @@ void PIDmotores(){
     error3Ant = error3;
     error4Ant = error4;
 }
+
 
 ///////////////////////////CON ESTO VISUALIZO LA VELOCIDAD OBTENIDA VS LA DESEADA//////////////////////
 /*             Serial.print("Deseada w1: ");
