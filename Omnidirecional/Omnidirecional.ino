@@ -424,10 +424,10 @@ void PIDmotores(){
     Motor(2, pwm2);
     Motor(3, pwm3);
     Motor(4, pwm4);
-    error1Ant = error1;
+/*     error1Ant = error1;
     error2Ant = error2;
     error3Ant = error3;
-    error4Ant = error4;
+    error4Ant = error4; */
 }
 
 
