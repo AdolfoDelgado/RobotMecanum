@@ -138,7 +138,21 @@ float w4_d=0;
 
 float x = 0.0;
 float y = 0.0;
-float theta = 0.0;
+float Theta = 0.0;
+
+///////*VARIABLES PARA EL SEGUIMIENTO DE TRAYECTORIAS*///////// 
+float x_d=1;
+float y_d=0;
+float Theta_d=0;
+
+float Kp_pos = 0.8;
+float Kp_ang = 1.5;
+
+float Error_Xglobal;
+float Error_Yglobal;
+float Error_Theta;
+                                            
+
 
 ///////*funciones para los encoders*///////// 
 void encoder1 (void);
@@ -208,8 +222,10 @@ void loop(){
             RPM();
             VelocidadAngular();
             VelocidadLineal();
-
             CinematicaDirecta();
+            Odometria();
+            
+            Objetivo(x_d,y_d,Theta_d);
             CinematicaInversa(vx_d, vy_d, w_d);
 
             PIDmotores();
@@ -217,14 +233,14 @@ void loop(){
     }
     if (millis() - lastPrint >= PrintTime){
         lastPrint = millis();
-        Serial.print("vx_d: "); Serial.print(vx_d);
-        Serial.print(" vx: ");  Serial.println(vx);
+        Serial.print("x_d: "); Serial.print(x_d);
+        Serial.print(" x: ");  Serial.println(x);
 
-        Serial.print("vy_d: "); Serial.print(vy_d);
-        Serial.print(" vy: ");  Serial.println(vy);
+        Serial.print("y_d: "); Serial.print(y_d);
+        Serial.print(" y: ");  Serial.println(y);
 
-        Serial.print("w_d: ");  Serial.print(w_d);
-        Serial.print(" w: ");   Serial.println(w);
+        Serial.print("Theta_d: ");  Serial.print(Theta_d);
+        Serial.print(" Theta: ");   Serial.println(Theta);
     }
 }
 
@@ -363,16 +379,16 @@ void CinematicaInversa(float vx, float vy, float w){
     w4_d = (vx + vy - (LX + LY) * w) / radioRueda;
 }
 void Odometria(){    
-    theta += w * dt;
-    x += (vx * cos(theta) - vy * sin(theta)) * dt;
-    y += (vx * sin(theta) + vy * cos(theta)) * dt;
+    x += (vx * cos(Theta) - vy * sin(Theta)) * dt;
+    y += (vx * sin(Theta) + vy * cos(Theta)) * dt;
+    Theta += w * dt;
 }
 void Motor(int motor, int pwm){
-    int pwmMin = 200;
-    if(pwm1 > 0) pwm1 += pwmMin;
-    if(pwm1 < 0) pwm1 -= pwmMin;
+/*     int pwmMin = 100;
+    if(pwm > 0) pwm += pwmMin;
+    if(pwm < 0) pwm -= pwmMin;
 
-    pwm = constrain(pwm, -1023, 1023);
+    pwm = constrain(pwm, -1023, 1023); */
 
     int pinFwd, pinBwd;
 
@@ -429,7 +445,36 @@ void PIDmotores(){
     error3Ant = error3;
     error4Ant = error4; */
 }
+void Objetivo(float x_d, float y_d, float Theta_d){
+    Error_Xglobal = x_d - x;
+    Error_Yglobal = y_d - y;
+    Error_Theta = Theta_d - Theta;
 
+    float distancia = sqrt(Error_Xglobal * Error_Xglobal + Error_Yglobal * Error_Yglobal);
+
+    if(distancia < 0.05 && abs(Error_Theta) < 0.05)
+    {
+        vx_d = 0;
+        vy_d = 0;
+        w_d = 0;
+        return;
+    }
+
+    float cosT = cos(Theta);
+    float sinT = sin(Theta);
+
+    // Error global -> error en marco del robot
+    float Error_Xrobot =  cosT * Error_Xglobal + sinT * Error_Yglobal;
+    float Error_Yrobot = -sinT * Error_Xglobal+ cosT * Error_Yglobal;
+
+    vx_d = Kp_pos * Error_Xrobot;
+    vy_d = Kp_pos * Error_Yrobot;
+    w_d  = Kp_ang * Error_Theta;
+
+    vx_d = constrain(vx_d, -0.4, 0.4);
+    vy_d = constrain(vy_d, -0.4, 0.4);
+    w_d  = constrain(w_d, -1.0, 1.0);
+}
 
 ///////////////////////////CON ESTO VISUALIZO LA VELOCIDAD OBTENIDA VS LA DESEADA//////////////////////
 /*             Serial.print("Deseada w1: ");
