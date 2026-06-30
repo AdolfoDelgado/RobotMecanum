@@ -1,7 +1,3 @@
-/* 
-Esta version contiene la cinematica Inversa funcionando, solo me falta probar vencer la fricción
-del suelo para despues probar perfecto mi control PI
- */
 #include <math.h>
 ///////*configuración para mis drivers*///////// 
 //driver para el motor 1
@@ -31,13 +27,17 @@ del suelo para despues probar perfecto mi control PI
 #define M4Aencoder 38
 #define M4Bencoder 39
 
-///////*variables para el conteo de pulsos*///////// 
+
+
+///////*variables para el conteo de pulsos e impresion serial*///////// 
 bool primeraMuestra = true;
 unsigned long LastTime = 0;
 unsigned long SampleTime = 100;
 
 unsigned long lastPrint = 0;
 unsigned long PrintTime = 1000;
+
+
 
 //variables para el encoder1
 volatile float rpm1 = 0;
@@ -72,7 +72,9 @@ volatile long n4=0;
 volatile byte ant4=0;
 volatile byte act4=0;
 
-///////*variables para el VELOCIDADES LINEALES Y ANGULARES*///////// 
+
+
+///////*VARIABLES PARA EL CONTROL Y LECTURA VELOCIDADES LINEALES, ANGULARES*///////// 
 float v1 = 0;
 float v2 = 0;
 float v3 = 0;
@@ -83,18 +85,42 @@ volatile float w2 = 0;
 volatile float w3 = 0;
 volatile float w4 = 0;
 
-///////*variables para el calculo de cinematica*///////// 
-float radioRueda = 0.03;
-float LX = 0.0605; 
-float LY = 0.0964;
-
 float vx = 0;
 float vy = 0;
 float w = 0;
 
+float x = 0.0;
+float y = 0.0;
+float Theta = 0.0;
+
+
+///////*VARIABLES PARA EL SEGUIMIENTO DE TRAYECTORIAS Y ODOMETRIA *///////// 
+float w1_d=0;
+float w2_d=0;
+float w3_d=0;
+float w4_d=0;
+
 float vx_d = 0;
 float vy_d = 0;
 float w_d = 0;
+
+float x_d=0;
+float y_d=0;
+float Theta_d=0;
+
+float Kp_pos = 0.8;
+float Kp_ang = 1.5;
+
+float Error_Xglobal;
+float Error_Yglobal;
+float Error_Theta;
+
+                                            
+///////*Informacióo para las variables para el calculo de cinematica*///////// 
+float radioRueda = 0.03;
+float LX = 0.0605; 
+float LY = 0.0964;
+
 
 
 ///////*variables para el PID de los motores*///////// 
@@ -128,39 +154,15 @@ float Ki = 3.5;
 //float kd = 0.1;
 float dt = SampleTime / 1000.0;
 
-///////*variables para el SETPOINT DE VELOCIDAD ANGULAR*///////// 
-float w1_d=0;
-float w2_d=0;
-float w3_d=0;
-float w4_d=0;
-
-///////*VARIABLES PARA EL CALCULO DE ODOMETRIA*///////// 
-
-float x = 0.0;
-float y = 0.0;
-float Theta = 0.0;
-
-///////*VARIABLES PARA EL SEGUIMIENTO DE TRAYECTORIAS*///////// 
-float x_d=1;
-float y_d=0;
-float Theta_d=0;
-
-float Kp_pos = 0.8;
-float Kp_ang = 1.5;
-
-float Error_Xglobal;
-float Error_Yglobal;
-float Error_Theta;
-                                            
 
 
-///////*funciones para los encoders*///////// 
+///////*DECLARACIÓN DE FUNCIONES*///////// 
 void encoder1 (void);
 void encoder2 (void);
 void encoder3 (void);
 void encoder4 (void);
 
-//////////*funciones para CINEMATICA DIRECTA E INVERSA Y ODOMETRIA*///////// 
+void muestras (void);
 void DeltaEncoders (void);
 void RPM (void);
 void VelocidadAngular(void);
@@ -170,7 +172,9 @@ void CinematicaInversa();
 void Odometria();
 void Motor(int motor, int pwm);
 void PIDmotores();
+void PSerial();
 
+///////*FUNCIONES PRINCIPALES*///////// 
 void setup(){
    Serial.begin(9600); 
    pinMode(M1Aencoder, INPUT);
@@ -204,12 +208,10 @@ void setup(){
 
 
 void loop(){
+    PSerial ();
     if(millis()- LastTime >= SampleTime || LastTime == 0 ){
         LastTime = millis();
-        muestran1 = n1;
-        muestran2 = n2;
-        muestran3 = n3;
-        muestran4 = n4;
+        muestras();
         if(primeraMuestra){
             n1Ant = muestran1;
             n2Ant = muestran2;
@@ -244,6 +246,8 @@ void loop(){
     }
 }
 
+
+///////*DEFINICIÓN DE LAS FUNCIONES*///////// 
 void encoder1 (void){
     ant1=act1;
     if (digitalRead(M1Aencoder)) 
@@ -328,6 +332,12 @@ void encoder4 (void){
     if(ant4 ==2 && act4 == 3 ) n4--;
 
 }
+void muestras(void){
+    muestran1 = n1;
+    muestran2 = n2;
+    muestran3 = n3;
+    muestran4 = n4;
+}
 void DeltaEncoders (void){
    Delta1 = muestran1 - n1Ant;
    Delta2 = muestran2 - n2Ant;
@@ -344,11 +354,6 @@ void RPM (void){
    rpm2 = (Delta2 * 600.0) / 410.0;
    rpm3 = (Delta3 * 600.0) / 410.0;
    rpm4 = (Delta4 * 600.0) / 410.0;
-
-/*    Serial.print("RPM1: ");Serial.println(rpm1);
-   Serial.print("RPM2: ");Serial.println(rpm2);
-   Serial.print("RPM3: ");Serial.println(rpm3);
-   Serial.print("RPM4: ");Serial.println(rpm4); */
 }
 void VelocidadAngular(void){
    w1 = rpm1 * 2.0 * PI / 60.0;
@@ -365,18 +370,13 @@ void VelocidadLineal(void){
 void CinematicaDirecta(void){
    vx = (v1 + v2 + v3 + v4) / 4.0;
    vy = (-v1 + v2 - v3 + v4) / 4.0;
-   w  = (-v1 + v2 + v3 - v4) / (4.0 * LX+LY);
+   w  = (-v1 + v2 + v3 - v4) / (4.0 * (LX+LY));
 }
-void CinematicaInversa(float vx, float vy, float w){
-/*     w1_d = (vx_d - vy_d - (LX + LY) * w_d) / radioRueda;
-    w2_d = (vx_d + vy_d + (LX + LY) * w_d) / radioRueda;
-    w3_d = (vx_d - vy_d + (LX + LY) * w_d) / radioRueda;
-    w4_d = (vx_d + vy_d - (LX + LY) * w_d) / radioRueda;
- */
-    w1_d = (vx - vy - (LX + LY) * w) / radioRueda;
-    w2_d = (vx + vy + (LX + LY) * w) / radioRueda;
-    w3_d = (vx - vy + (LX + LY) * w) / radioRueda;
-    w4_d = (vx + vy - (LX + LY) * w) / radioRueda;
+void CinematicaInversa(float vxD, float vyD, float wD){
+    w1_d = (vxD - vyD - (LX + LY) * wD) / radioRueda;
+    w2_d = (vxD + vyD + (LX + LY) * wD) / radioRueda;
+    w3_d = (vxD - vyD + (LX + LY) * wD) / radioRueda;
+    w4_d = (vxD + vyD - (LX + LY) * wD) / radioRueda;
 }
 void Odometria(){    
     x += (vx * cos(Theta) - vy * sin(Theta)) * dt;
@@ -445,14 +445,15 @@ void PIDmotores(){
     error3Ant = error3;
     error4Ant = error4; */
 }
-void Objetivo(float x_d, float y_d, float Theta_d){
-    Error_Xglobal = x_d - x;
-    Error_Yglobal = y_d - y;
-    Error_Theta = Theta_d - Theta;
+void Objetivo(float xD, float yD, float ThetaD){
+    Error_Xglobal = xD - x;
+    Error_Yglobal = yD - y;
+    Error_Theta = ThetaD - Theta;
+    Error_Theta = atan2(sin(Error_Theta), cos(Error_Theta));
 
     float distancia = sqrt(Error_Xglobal * Error_Xglobal + Error_Yglobal * Error_Yglobal);
 
-    if(distancia < 0.05 && abs(Error_Theta) < 0.05)
+    if(distancia < 0.05 && fabs(Error_Theta) < 0.05)
     {
         vx_d = 0;
         vy_d = 0;
@@ -475,7 +476,32 @@ void Objetivo(float x_d, float y_d, float Theta_d){
     vy_d = constrain(vy_d, -0.4, 0.4);
     w_d  = constrain(w_d, -1.0, 1.0);
 }
+void PSerial (){
+    if(Serial.available())
+    {
+        String comando = Serial.readStringUntil('\n');
+        comando.trim();
 
+        int coma1 = comando.indexOf(',');
+        int coma2 = comando.indexOf(',', coma1 + 1);
+
+        if(coma1 > 0 && coma2 > coma1)
+        {
+            float nuevoX = comando.substring(0, coma1).toFloat();
+            float nuevoY = comando.substring(coma1 + 1, coma2).toFloat();
+            float nuevoTheta = comando.substring(coma2 + 1).toFloat();
+
+            x_d = nuevoX;
+            y_d = nuevoY;
+            Theta_d = nuevoTheta * PI / 180.0;
+
+            Serial.println("Nuevo objetivo recibido:");
+            Serial.print("x_d: "); Serial.println(x_d);
+            Serial.print("y_d: "); Serial.println(y_d);
+            Serial.print("Theta_d rad: "); Serial.println(Theta_d);
+        }
+    }
+}
 ///////////////////////////CON ESTO VISUALIZO LA VELOCIDAD OBTENIDA VS LA DESEADA//////////////////////
 /*             Serial.print("Deseada w1: ");
             Serial.print(w1_d);
