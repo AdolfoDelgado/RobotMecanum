@@ -227,7 +227,7 @@ void loop(){
             CinematicaDirecta();
             Odometria();
             
-            Objetivo(x_d,y_d,Theta_d);
+            //Objetivo(x_d,y_d,Theta_d);
             CinematicaInversa(vx_d, vy_d, w_d);
 
             PIDmotores();
@@ -235,14 +235,14 @@ void loop(){
     }
     if (millis() - lastPrint >= PrintTime){
         lastPrint = millis();
-        Serial.print("x_d: "); Serial.print(x_d);
-        Serial.print(" x: ");  Serial.println(x);
+        Serial.print("vx_d: "); Serial.print(vx_d);
+        Serial.print(" vx: ");  Serial.println(vx);
 
-        Serial.print("y_d: "); Serial.print(y_d);
-        Serial.print(" y: ");  Serial.println(y);
+        Serial.print("vy_d: "); Serial.print(vy_d);
+        Serial.print(" vy: ");  Serial.println(vy);
 
-        Serial.print("Theta_d: ");  Serial.print(Theta_d);
-        Serial.print(" Theta: ");   Serial.println(Theta);
+        Serial.print("w_d: ");  Serial.print(w_d);
+        Serial.print(" w: ");   Serial.println(w);
     }
 }
 
@@ -384,18 +384,20 @@ void Odometria(){
     Theta += w * dt;
 }
 void Motor(int motor, int pwm){
-/*     int pwmMin = 100;
-    if(pwm > 0) pwm += pwmMin;
-    if(pwm < 0) pwm -= pwmMin;
+    int pwmMin = 100;
 
-    pwm = constrain(pwm, -1023, 1023); */
+    if(abs(pwm) < 20) pwm = 0;
+    else if(pwm > 0) pwm += pwmMin;
+    else pwm -= pwmMin;
+
+    pwm = constrain(pwm, -1023, 1023);
 
     int pinFwd, pinBwd;
 
     if(motor == 1){ pinFwd = M1forward; pinBwd = M1backward; }
-    if(motor == 2){ pinFwd = M2forward; pinBwd = M2backward; }
-    if(motor == 3){ pinFwd = M3forward; pinBwd = M3backward; }
-    if(motor == 4){ pinFwd = M4forward; pinBwd = M4backward; }
+    else if(motor == 2){ pinFwd = M2forward; pinBwd = M2backward; }
+    else if(motor == 3){ pinFwd = M3forward; pinBwd = M3backward; }
+    else if(motor == 4){ pinFwd = M4forward; pinBwd = M4backward; }
 
     if(pwm > 0){
         ledcWrite(pinFwd, pwm);
@@ -484,8 +486,8 @@ void PSerial (){
 
         int coma1 = comando.indexOf(',');
         int coma2 = comando.indexOf(',', coma1 + 1);
-
-        if(coma1 > 0 && coma2 > coma1)
+        ///para el ir a objetivo
+/*         if(coma1 > 0 && coma2 > coma1)
         {
             float nuevoX = comando.substring(0, coma1).toFloat();
             float nuevoY = comando.substring(coma1 + 1, coma2).toFloat();
@@ -499,6 +501,22 @@ void PSerial (){
             Serial.print("x_d: "); Serial.println(x_d);
             Serial.print("y_d: "); Serial.println(y_d);
             Serial.print("Theta_d rad: "); Serial.println(Theta_d);
+        } */
+        ///para velocidades deseadas
+        if(coma1 > 0 && coma2 > coma1)
+        {
+            float nuevoVXD = comando.substring(0, coma1).toFloat();
+            float nuevoVYD = comando.substring(coma1 + 1, coma2).toFloat();
+            float nuevoWD = comando.substring(coma2 + 1).toFloat();
+
+            vx_d = nuevoVXD;
+            vy_d = nuevoVYD;
+            w_d = nuevoWD 
+
+            Serial.println("Nueva velocidad recibida:");
+            Serial.print("vx_d: "); Serial.println(vx_d);
+            Serial.print("vy_d: "); Serial.println(vy_d);
+            Serial.print("w_d rad: "); Serial.println(w_d);
         }
     }
 }
