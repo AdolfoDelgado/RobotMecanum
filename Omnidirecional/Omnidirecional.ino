@@ -1,3 +1,8 @@
+/* 
+Esta version ya ejecuta correctamente la cinematica y lee los encoders, aun me falta integrar el IMU, pero los encoders ya hacen su trabajo
+al igual ya lo estoy conectando con ROS, hasta aqui mi reporte joaquin
+ah por cierto me falta ajustar mas finamente el PI
+ */
 #include <math.h>
 ///////*configuración para mis drivers*///////// 
 //driver para el motor 1
@@ -384,10 +389,10 @@ void Odometria(){
     Theta += w * dt;
 }
 void Motor(int motor, int pwm){
-    int pwmMin = 100;
+    int pwmMin = 60;
 
-    if(abs(pwm) < 20) pwm = 0;
-    else if(pwm > 0) pwm += pwmMin;
+    if(abs(pwm) <= 20) pwm = 0;
+    else if(pwm >= 21) pwm += pwmMin;
     else pwm -= pwmMin;
 
     pwm = constrain(pwm, -1023, 1023);
@@ -413,6 +418,11 @@ void Motor(int motor, int pwm){
     }
 }
 void PIDmotores(){
+    if(w1_d == 0) integral1 = 0;
+    if(w2_d == 0) integral2 = 0;
+    if(w3_d == 0) integral3 = 0;
+    if(w4_d == 0) integral4 = 0;
+
     error1=w1_d-w1;
     integral1 += error1 * dt;
     integral1 = constrain (integral1, -300, 300);
@@ -436,7 +446,6 @@ void PIDmotores(){
     integral4 = constrain (integral4, -300, 300);
     //derivada4 = (error4 - error4Ant) / dt;
     pwm4=kp * error4 + Ki * integral4; //+ kd * derivada4;
-
 
     Motor(1, pwm1);
     Motor(2, pwm2);
@@ -511,7 +520,7 @@ void PSerial (){
 
             vx_d = nuevoVXD;
             vy_d = nuevoVYD;
-            w_d = nuevoWD 
+            w_d = nuevoWD;
 
             Serial.println("Nueva velocidad recibida:");
             Serial.print("vx_d: "); Serial.println(vx_d);
@@ -520,44 +529,3 @@ void PSerial (){
         }
     }
 }
-///////////////////////////CON ESTO VISUALIZO LA VELOCIDAD OBTENIDA VS LA DESEADA//////////////////////
-/*             Serial.print("Deseada w1: ");
-            Serial.print(w1_d);
-            Serial.print("\t");
-            Serial.print(" Medida w1: "); */
-/*             Serial.print(w1);    
-            Serial.print("\t"); */
-/*             Serial.print(" PWM1: ");
-            Serial.println(pwm1); */
-
-/*             Serial.print("Deseada w2: ");
-            Serial.print(w2_d);
-            Serial.print("\t");
-            Serial.print(" Medida w2: "); */
-/*             Serial.print(w2);    
-            Serial.print("\t"); */
-/*             Serial.print(" PWM2: ");
-            Serial.println(pwm2); */
-
-/*             Serial.print("Deseada w3: ");
-            Serial.print(w3_d);
-            Serial.print("\t");
-            Serial.print(" Medida w3: "); */
-/*             Serial.print(w3);    
-            Serial.print("\t"); */
-/*             Serial.print(" PWM3: ");
-            Serial.println(pwm3); */
-
-/*             Serial.print("Deseada w4: ");    
-            Serial.print(w4_d);
-            Serial.print("\t");
-            Serial.print(" Medida w4: "); */
-/*             Serial.println(w4);  */   
-/*             Serial.print("\t");
-            Serial.print(" PWM4: ");
-            Serial.println(pwm4); */
-
-/////////////////////////////CON ESTO VISUALIZO LA VELOCIDAD EN VX VY Y W///////////////////////
-/*    Serial.printf("Velocidad en X: ");Serial.println(vx);
-   Serial.printf("Velocidad en Y: ");Serial.println(vy);
-   Serial.printf("Velocidad W: ");Serial.println(w); */
