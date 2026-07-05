@@ -237,6 +237,7 @@ void loop(){
             CinematicaDirecta();
             Odometria();
             angulos();
+            
             //Objetivo(x_d,y_d,Theta_d);
             CinematicaInversa(vx_d, vy_d, w_d);
             PIDmotores();
@@ -370,10 +371,10 @@ void DeltaEncoders (void){
    n4Ant = muestran4;
 }
 void RPM (void){
-   rpm1 = (Delta1 * 600.0) / 410.0;
-   rpm2 = (Delta2 * 600.0) / 410.0;
-   rpm3 = (Delta3 * 600.0) / 410.0;
-   rpm4 = (Delta4 * 600.0) / 410.0;
+   rpm1 = (Delta1 *  60000.0) / (410.0*SampleTime);
+   rpm2 = (Delta2 *  60000.0) / (410.0*SampleTime);
+   rpm3 = (Delta3 *  60000.0) / (410.0*SampleTime);
+   rpm4 = (Delta4 *  60000.0) / (410.0*SampleTime);
 }
 void VelocidadAngular(void){
    w1 = rpm1 * 2.0 * PI / 60.0;
