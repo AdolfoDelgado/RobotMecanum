@@ -37,14 +37,15 @@ ah por cierto me falta ajustar mas finamente el PI
 ///////*variables para el conteo de pulsos e impresion serial*///////// 
 bool primeraMuestra = true;
 unsigned long LastTime = 0;
-unsigned long SampleTime = 100;
+unsigned long SampleTime = 20;
 
 unsigned long lastPrint = 0;
-unsigned long PrintTime = 1000;
+unsigned long PrintTime = 20;
 
 
 
 //variables para el encoder1
+volatile float angulo1 = 0;
 volatile float rpm1 = 0;
 volatile long Delta1 = 0;
 volatile long muestran1 = 0;
@@ -53,6 +54,7 @@ volatile long n1=0;
 volatile byte ant1=0;
 volatile byte act1=0;
 //variables para el encoder2
+volatile float angulo2 = 0;
 volatile float rpm2 = 0;
 volatile long Delta2 = 0;
 volatile long muestran2 = 0;
@@ -61,6 +63,7 @@ volatile long n2=0;
 volatile byte ant2=0;
 volatile byte act2=0;
 //variables para el encoder3
+volatile float angulo3 = 0;
 volatile float rpm3 = 0;
 volatile long Delta3 = 0;
 volatile long muestran3 = 0;
@@ -69,6 +72,7 @@ volatile long n3=0;
 volatile byte ant3=0;
 volatile byte act3=0;
 //variables para el encoder4
+volatile float angulo4 = 0;
 volatile float rpm4 = 0;
 volatile long Delta4 = 0;
 volatile long muestran4 = 0;
@@ -167,6 +171,7 @@ void encoder2 (void);
 void encoder3 (void);
 void encoder4 (void);
 
+void angulos();
 void muestras (void);
 void DeltaEncoders (void);
 void RPM (void);
@@ -181,7 +186,7 @@ void PSerial();
 
 ///////*FUNCIONES PRINCIPALES*///////// 
 void setup(){
-   Serial.begin(9600); 
+   Serial.begin(115200); 
    pinMode(M1Aencoder, INPUT);
    pinMode(M1Bencoder, INPUT);
    pinMode(M2Aencoder, INPUT);
@@ -231,24 +236,26 @@ void loop(){
             VelocidadLineal();
             CinematicaDirecta();
             Odometria();
-            
+            angulos();
             //Objetivo(x_d,y_d,Theta_d);
             CinematicaInversa(vx_d, vy_d, w_d);
-
             PIDmotores();
         }
     }
     if (millis() - lastPrint >= PrintTime){
         lastPrint = millis();
-        Serial.print("vx_d: "); Serial.print(vx_d);
-        Serial.print(" vx: ");  Serial.println(vx);
 
-        Serial.print("vy_d: "); Serial.print(vy_d);
-        Serial.print(" vy: ");  Serial.println(vy);
-
-        Serial.print("w_d: ");  Serial.print(w_d);
-        Serial.print(" w: ");   Serial.println(w);
-    }
+        Serial.print(x); Serial.print(","); 
+        Serial.print(y); Serial.print(",");
+        Serial.print(Theta); Serial.print(",");
+        Serial.print(vx); Serial.print(",");
+        Serial.print(vy); Serial.print(",");
+        Serial.print(w); Serial.print(",");
+        Serial.print(angulo1); Serial.print(",");
+        Serial.print(angulo2); Serial.print(",");
+        Serial.print(angulo3); Serial.print(",");
+        Serial.println(angulo4);
+    } 
 }
 
 
@@ -337,11 +344,19 @@ void encoder4 (void){
     if(ant4 ==2 && act4 == 3 ) n4--;
 
 }
+void angulos (void){
+    angulo1 = (muestran1 / 410.0) * 2.0 * PI;
+    angulo2 = (muestran2 / 410.0) * 2.0 * PI;
+    angulo3 = (muestran3 / 410.0) * 2.0 * PI;
+    angulo4 = (muestran4 / 410.0) * 2.0 * PI;
+}
 void muestras(void){
+    noInterrupts();
     muestran1 = n1;
     muestran2 = n2;
     muestran3 = n3;
     muestran4 = n4;
+    interrupts();
 }
 void DeltaEncoders (void){
    Delta1 = muestran1 - n1Ant;
@@ -522,10 +537,13 @@ void PSerial (){
             vy_d = nuevoVYD;
             w_d = nuevoWD;
 
-            Serial.println("Nueva velocidad recibida:");
-            Serial.print("vx_d: "); Serial.println(vx_d);
-            Serial.print("vy_d: "); Serial.println(vy_d);
-            Serial.print("w_d rad: "); Serial.println(w_d);
+            //Serial.println("Nueva velocidad recibida:");
+            //Serial.print("vx_d: "); 
+            Serial.println(vx_d);
+            //Serial.print("vy_d: "); 
+            Serial.println(vy_d);
+            //Serial.print("w_d rad: "); 
+            Serial.println(w_d);
         }
     }
 }
