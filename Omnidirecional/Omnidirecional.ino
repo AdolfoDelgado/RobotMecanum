@@ -158,8 +158,8 @@ int pwm2=0;
 int pwm3=0;
 int pwm4=0;
 
-float kp = 22;
-float Ki = 3.5;
+float kp = 26;
+float Ki = 4;
 //float kd = 0.1;
 float dt = SampleTime / 1000.0;
 
@@ -180,6 +180,7 @@ void VelocidadLineal(void);
 void CinematicaDirecta(void);
 void CinematicaInversa();
 void Odometria();
+void SendOdometry();
 void Motor(int motor, int pwm);
 void PIDmotores();
 void PSerial();
@@ -246,16 +247,7 @@ void loop(){
     if (millis() - lastPrint >= PrintTime){
         lastPrint = millis();
 
-        Serial.print(x); Serial.print(","); 
-        Serial.print(y); Serial.print(",");
-        Serial.print(Theta); Serial.print(",");
-        Serial.print(vx); Serial.print(",");
-        Serial.print(vy); Serial.print(",");
-        Serial.print(w); Serial.print(",");
-        Serial.print(angulo1); Serial.print(",");
-        Serial.print(angulo2); Serial.print(",");
-        Serial.print(angulo3); Serial.print(",");
-        Serial.println(angulo4);
+        SendOdometry();
     } 
 }
 
@@ -404,12 +396,24 @@ void Odometria(){
     y += (vx * sin(Theta) + vy * cos(Theta)) * dt;
     Theta += w * dt;
 }
+void SendOdometry(){
+    Serial.print(x); Serial.print(","); 
+    Serial.print(y); Serial.print(",");
+    Serial.print(Theta); Serial.print(",");
+    Serial.print(vx); Serial.print(",");
+    Serial.print(vy); Serial.print(",");
+    Serial.print(w); Serial.print(",");
+    Serial.print(angulo1); Serial.print(",");
+    Serial.print(angulo2); Serial.print(",");
+    Serial.print(angulo3); Serial.print(",");
+    Serial.println(angulo4);
+}
 void Motor(int motor, int pwm){
-    int pwmMin = 60;
+/*     int pwmMin = 12;
 
-    if(abs(pwm) <= 20) pwm = 0;
-    else if(pwm >= 21) pwm += pwmMin;
-    else pwm -= pwmMin;
+    if(abs(pwm) <= 10) pwm = 0;
+    else if(pwm >= 11) pwm += pwmMin;
+    else pwm -= pwmMin; */
 
     pwm = constrain(pwm, -1023, 1023);
 
