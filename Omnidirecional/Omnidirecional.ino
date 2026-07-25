@@ -260,7 +260,7 @@ void loop(){
             PIDmotores();
 
             SendOdometry();
-            SendIMU();
+            //SendIMU();
         }
     }
 }
@@ -411,7 +411,7 @@ void Odometria(void){
     Theta += w * dt;
 }
 void SendOdometry(void){
-    Serial.print("ODOM,");
+    //Serial.print("ODOM,");
     Serial.print(x,3); Serial.print(","); 
     Serial.print(y,3); Serial.print(",");
     Serial.print(Theta,3); Serial.print(",");
