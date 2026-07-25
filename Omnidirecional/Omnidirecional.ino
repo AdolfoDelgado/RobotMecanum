@@ -3,6 +3,10 @@ Esta version ya ejecuta correctamente la cinematica y lee los encoders, aun me f
 al igual ya lo estoy conectando con ROS, hasta aqui mi reporte joaquin
 ah por cierto me falta ajustar mas finamente el PI
  */
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+#include <utility/imumaths.h>
 #include <math.h>
 ///////*configuración para mis drivers*///////// 
 //driver para el motor 1
@@ -32,16 +36,16 @@ ah por cierto me falta ajustar mas finamente el PI
 #define M4Aencoder 38
 #define M4Bencoder 39
 
+Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x29);
 
+imu::Quaternion q;
+imu::Vector<3> gyro;
+imu::Vector<3> accel;
 
 ///////*variables para el conteo de pulsos e impresion serial*///////// 
 bool primeraMuestra = true;
 unsigned long LastTime = 0;
 unsigned long SampleTime = 20;
-
-unsigned long lastPrint = 0;
-unsigned long PrintTime = 20;
-
 
 
 //variables para el encoder1
@@ -138,29 +142,29 @@ float error2=0;
 float error3=0;
 float error4=0;
 
-/* float error1Ant = 0;
+float error1Ant = 0;
 float error2Ant = 0;
 float error3Ant = 0;
-float error4Ant = 0; */
+float error4Ant = 0; 
 
 float integral1=0;
 float integral2=0;
 float integral3=0;
 float integral4=0;
 
-/* float derivada1 = 0;
+float derivada1 = 0;
 float derivada2 = 0;
 float derivada3 = 0;
 float derivada4 = 0;
- */
+
 int pwm1=0;
 int pwm2=0;
 int pwm3=0;
 int pwm4=0;
 
-float kp = 26;
+float kp = 20;
 float Ki = 4;
-//float kd = 0.1;
+float kd = 0.05;
 float dt = SampleTime / 1000.0;
 
 
@@ -171,19 +175,25 @@ void encoder2 (void);
 void encoder3 (void);
 void encoder4 (void);
 
-void angulos();
+void angulos(void);
 void muestras (void);
 void DeltaEncoders (void);
 void RPM (void);
 void VelocidadAngular(void);
 void VelocidadLineal(void);
 void CinematicaDirecta(void);
-void CinematicaInversa();
-void Odometria();
-void SendOdometry();
+void CinematicaInversa(void);
+void Odometria(void);
+void SendOdometry(void);
+void ReadIMU(void);
+void SendIMU(void);
 void Motor(int motor, int pwm);
-void PIDmotores();
-void PSerial();
+void PIDmotores(void);
+void PSerial(void);
+
+void PlotVelocity(void);
+void PlotAngularVelocity(void);
+
 
 ///////*FUNCIONES PRINCIPALES*///////// 
 void setup(){
@@ -214,7 +224,12 @@ void setup(){
     ledcAttach(M3backward, 1000, 10); 
     ledcAttach(M4forward, 1000, 10);
     ledcAttach(M4backward, 1000, 10); 
-    
+
+    Wire.begin(8, 9);
+
+    if (!bno.begin())
+        Serial.println("ERROR_IMU");
+    bno.setExtCrystalUse(true);
 }
 
 
@@ -237,18 +252,17 @@ void loop(){
             VelocidadLineal();
             CinematicaDirecta();
             Odometria();
+            ReadIMU();
             angulos();
             
             //Objetivo(x_d,y_d,Theta_d);
             CinematicaInversa(vx_d, vy_d, w_d);
             PIDmotores();
+
+            SendOdometry();
+            SendIMU();
         }
     }
-    if (millis() - lastPrint >= PrintTime){
-        lastPrint = millis();
-
-        SendOdometry();
-    } 
 }
 
 
@@ -391,25 +405,51 @@ void CinematicaInversa(float vxD, float vyD, float wD){
     w3_d = (vxD - vyD + (LX + LY) * wD) / radioRueda;
     w4_d = (vxD + vyD - (LX + LY) * wD) / radioRueda;
 }
-void Odometria(){    
+void Odometria(void){    
     x += (vx * cos(Theta) - vy * sin(Theta)) * dt;
     y += (vx * sin(Theta) + vy * cos(Theta)) * dt;
     Theta += w * dt;
 }
-void SendOdometry(){
-    Serial.print(x); Serial.print(","); 
-    Serial.print(y); Serial.print(",");
-    Serial.print(Theta); Serial.print(",");
-    Serial.print(vx); Serial.print(",");
-    Serial.print(vy); Serial.print(",");
-    Serial.print(w); Serial.print(",");
-    Serial.print(angulo1); Serial.print(",");
-    Serial.print(angulo2); Serial.print(",");
-    Serial.print(angulo3); Serial.print(",");
-    Serial.println(angulo4);
+void SendOdometry(void){
+    Serial.print("ODOM,");
+    Serial.print(x,3); Serial.print(","); 
+    Serial.print(y,3); Serial.print(",");
+    Serial.print(Theta,3); Serial.print(",");
+    Serial.print(vx,3); Serial.print(",");
+    Serial.print(vy,3); Serial.print(",");
+    Serial.print(w,3); Serial.print(",");
+    Serial.print(angulo1,3); Serial.print(",");
+    Serial.print(angulo2,3); Serial.print(",");
+    Serial.print(angulo3,3); Serial.print(",");
+    Serial.println(angulo4,3);
+}
+void ReadIMU(void){
+    q = bno.getQuat();
+
+    gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
+
+    accel = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
+}
+void SendIMU(void){
+    Serial.print("IMU,");
+    // Cuaternion
+    Serial.print(q.x(), 3); Serial.print(",");
+    Serial.print(q.y(), 3); Serial.print(",");
+    Serial.print(q.z(), 3); Serial.print(",");
+    Serial.print(q.w(), 3); Serial.print(",");
+
+    // Velocidad angular en rad/s
+    Serial.print(gyro.x(), 3); Serial.print(",");
+    Serial.print(gyro.y(), 3); Serial.print(",");
+    Serial.print(gyro.z(), 3); Serial.print(",");
+
+    // Aceleracion lineal en m/s²
+    Serial.print(accel.x(), 3); Serial.print(",");
+    Serial.print(accel.y(), 3); Serial.print(",");
+    Serial.println(accel.z(), 3);
 }
 void Motor(int motor, int pwm){
-/*     int pwmMin = 12;
+    /*int pwmMin = 12;
 
     if(abs(pwm) <= 10) pwm = 0;
     else if(pwm >= 11) pwm += pwmMin;
@@ -437,7 +477,7 @@ void Motor(int motor, int pwm){
         ledcWrite(pinBwd, 0);
     }
 }
-void PIDmotores(){
+void PIDmotores(void){
     if(w1_d == 0) integral1 = 0;
     if(w2_d == 0) integral2 = 0;
     if(w3_d == 0) integral3 = 0;
@@ -446,35 +486,35 @@ void PIDmotores(){
     error1=w1_d-w1;
     integral1 += error1 * dt;
     integral1 = constrain (integral1, -300, 300);
-    //derivada1 = (error1 - error1Ant) / dt;
-    pwm1=kp * error1 + Ki * integral1; //+ kd * derivada1;
+    derivada1 = (error1 - error1Ant) / dt;
+    pwm1=(kp * error1) + (Ki * integral1) + (kd * derivada1);
 
     error2=w2_d-w2;
     integral2 += error2 * dt;
     integral2 = constrain (integral2, -300, 300);
-    //derivada2 = (error2 - error2Ant) / dt;
-    pwm2=kp * error2 + Ki * integral2 ;//+ kd * derivada2;
+    derivada2 = (error2 - error2Ant) / dt;
+    pwm2=(kp * error2) + (Ki * integral2) + (kd * derivada2);
 
     error3=w3_d-w3;
     integral3 += error3 * dt;
     integral3 = constrain (integral3, -300, 300);
-    //derivada3 = (error3 - error3Ant) / dt;
-    pwm3=kp * error3 + Ki * integral3; //+ kd * derivada3;
+    derivada3 = (error3 - error3Ant) / dt;
+    pwm3=(kp * error3) + (Ki * integral3) + (kd * derivada3);
 
     error4=w4_d-w4;
     integral4 += error4 * dt;
     integral4 = constrain (integral4, -300, 300);
-    //derivada4 = (error4 - error4Ant) / dt;
-    pwm4=kp * error4 + Ki * integral4; //+ kd * derivada4;
+    derivada4 = (error4 - error4Ant) / dt;
+    pwm4=(kp * error4) + (Ki * integral4) + (kd * derivada4);
 
     Motor(1, pwm1);
     Motor(2, pwm2);
     Motor(3, pwm3);
     Motor(4, pwm4);
-/*     error1Ant = error1;
+    error1Ant = error1;
     error2Ant = error2;
     error3Ant = error3;
-    error4Ant = error4; */
+    error4Ant = error4;
 }
 void Objetivo(float xD, float yD, float ThetaD){
     Error_Xglobal = xD - x;
@@ -507,7 +547,7 @@ void Objetivo(float xD, float yD, float ThetaD){
     vy_d = constrain(vy_d, -0.4, 0.4);
     w_d  = constrain(w_d, -1.0, 1.0);
 }
-void PSerial (){
+void PSerial (void){
     if(Serial.available())
     {
         String comando = Serial.readStringUntil('\n');
@@ -516,21 +556,21 @@ void PSerial (){
         int coma1 = comando.indexOf(',');
         int coma2 = comando.indexOf(',', coma1 + 1);
         ///para el ir a objetivo
-/*         if(coma1 > 0 && coma2 > coma1)
-        {
-            float nuevoX = comando.substring(0, coma1).toFloat();
-            float nuevoY = comando.substring(coma1 + 1, coma2).toFloat();
-            float nuevoTheta = comando.substring(coma2 + 1).toFloat();
+            /*if(coma1 > 0 && coma2 > coma1)
+            {
+                float nuevoX = comando.substring(0, coma1).toFloat();
+                float nuevoY = comando.substring(coma1 + 1, coma2).toFloat();
+                float nuevoTheta = comando.substring(coma2 + 1).toFloat();
 
-            x_d = nuevoX;
-            y_d = nuevoY;
-            Theta_d = nuevoTheta * PI / 180.0;
+                x_d = nuevoX;
+                y_d = nuevoY;
+                Theta_d = nuevoTheta * PI / 180.0;
 
-            Serial.println("Nuevo objetivo recibido:");
-            Serial.print("x_d: "); Serial.println(x_d);
-            Serial.print("y_d: "); Serial.println(y_d);
-            Serial.print("Theta_d rad: "); Serial.println(Theta_d);
-        } */
+                Serial.println("Nuevo objetivo recibido:");
+                Serial.print("x_d: "); Serial.println(x_d);
+                Serial.print("y_d: "); Serial.println(y_d);
+                Serial.print("Theta_d rad: "); Serial.println(Theta_d);
+            }*/
         ///para velocidades deseadas
         if(coma1 > 0 && coma2 > coma1)
         {
@@ -551,4 +591,29 @@ void PSerial (){
             Serial.println(w_d);
         }
     }
+}
+
+
+void PlotAngularVelocity(void) {
+    Serial.print("w_d:");
+    Serial.print(w1_d, 0);
+
+    Serial.print(",w1_real:");
+    Serial.print(w1, 0);
+
+    Serial.print(",w2_real:");
+    Serial.print(w2, 0);
+
+    Serial.print(",w3_real:");
+    Serial.print(w3, 0);
+
+    Serial.print(",w4_real:");
+    Serial.println(w4, 0);
+}
+void PlotVelocity(void){
+    Serial.print("vxd:");
+    Serial.print(vx_d, 4);
+
+    Serial.print(",vxr:");
+    Serial.println(vx, 4);   
 }
