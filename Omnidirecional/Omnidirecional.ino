@@ -45,7 +45,7 @@ imu::Vector<3> accel;
 ///////*variables para el conteo de pulsos e impresion serial*///////// 
 bool primeraMuestra = true;
 unsigned long LastTime = 0;
-unsigned long SampleTime = 20;
+unsigned long SampleTime = 30;
 
 
 //variables para el encoder1
@@ -246,13 +246,13 @@ void loop(){
             primeraMuestra = false;
         }
         else {
+            ReadIMU();
             DeltaEncoders();
             RPM();
             VelocidadAngular();
             VelocidadLineal();
             CinematicaDirecta();
             Odometria();
-            ReadIMU();
             angulos();
             
             //Objetivo(x_d,y_d,Theta_d);
